@@ -1,18 +1,52 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"testing"
-	"time"
-
-	goavro "gopkg.in/linkedin/goavro.v2"
 )
 
-func TestFilesystemStorageAdapter(t *testing.T) {
-	fmt.Println("Starting TestFilesystemStorageAdapter")
+func TestFilesystemStorageAdapterWrite(t *testing.T) {
+	log.Println("Starting TestFilesystemStorageAdapterWrite")
+
+	fixtureMap := GetFixtureMap()
 
 	input := make(chan *Block)
 
+	filesystemStorageAdapter := &FilesystemStorageAdapter{
+		BasePath:        "./test/data",
+		Codec:           GetCodecFixture(),
+		PartitionColumn: "user_id",
+		KeyColumn:       "timestamp",
+		CompressionName: "snappy",
+		Input:           input,
+	}
+
+	err := filesystemStorageAdapter.Start()
+	if err != nil {
+		t.Errorf("filesystemStorageAdapter failed to start: %s", err)
+	}
+
+	block := NewBlock(fixtureMap["user_id"].(string), filesystemStorageAdapter.KeyColumn, filesystemStorageAdapter.Codec)
+	native := GetNativeFixture()
+
+	block.Write(native)
+
+	input <- block
+
+	filesystemStorageAdapter.Stop()
+
+	log.Println("Finishing TestFilesystemStorageAdapterWrite")
+}
+
+/*
+func TestFilesystemStorageAdapterQuery(t *testing.T) {
+	fmt.Println("Starting TestFilesystemStorageAdapterQuery")
+
+	fixtureMap := GetFixtureMap()
+	beforeTimestamp := fixtureMap["timestamp"].(int64) - 50
+	afterTimestamp := fixtureMap["timestamp"].(int64) + 50
+
+	input := make(chan *Block)
 	filesystemStorageAdapter := &FilesystemStorageAdapter{
 		BasePath: "./test/data",
 		Input:    input,
@@ -23,46 +57,16 @@ func TestFilesystemStorageAdapter(t *testing.T) {
 		t.Errorf("filesystemStorageAdapter failed to start: %s", err)
 	}
 
-	codec, err := goavro.NewCodec(`
-	{
-		"type": "record",
-		"name": "Test",
-		"fields": [
-			{ "name": "userId", "type": "string" },
-			{ "name": "timestamp", "type": "long" }
-		]
-	}`)
+	results, err := filesystemStorageAdapter.Query(fixtureMap["user_id"].(string), beforeTimestamp, afterTimestamp)
 
-	blockManager := &BlockManager{
-		ID: "userId-timestamp",
-
-		MaxAge:  60 * 1000, // milliseconds
-		MaxSize: 1024,      // rows
-
-		PartitionColumn: "userId",
-		KeyColumn:       "timestamp",
-		KeyType:         "uint32",
-
-		Input:  nil,
-		Output: nil,
-		Codec:  codec,
-	}
-
-	block := NewBlock(blockManager, "userid1")
-
-	textual := []byte(`{"userId":"userid1","timestamp":23432423}`)
-
-	// Convert textual Avro data (in Avro JSON format) to native Go form
-	native, _, err := codec.NativeFromTextual(textual)
 	if err != nil {
-		t.Errorf("NativeFromTextual failed: %s", err)
+		t.Errorf("filesystemStorageAdapter query failed with error: %s", err)
 	}
 
-	block.Write(native)
+	if len(results) != 1 {
+		t.Errorf("filesystemStorageAdapter query results list wrong length %d vs. 1", len(results))
+	}
 
-	input <- block
-
-	time.Sleep(1 * time.Second)
-
-	fmt.Println("Finishing TestFilesystemStorageAdapter")
+	fmt.Println("Finishing TestFilesystemStorageAdapterQuery")
 }
+*/

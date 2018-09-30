@@ -1,50 +1,30 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"testing"
 	"time"
-
-	goavro "gopkg.in/linkedin/goavro.v2"
 )
 
 func TestBlockManager(t *testing.T) {
-	fmt.Println("Starting TestBlockManager")
-
-	codec, err := goavro.NewCodec(`
-	{
-		"type": "record",
-		"name": "Test",
-		"fields": [
-			{ "name": "userId", "type": "string" },
-			{ "name": "timestamp", "type": "long" }
-		]
-	}`)
+	log.Println("Starting TestBlockManager")
 
 	input := make(chan interface{})
 	output := make(chan *Block)
 
-	textual := []byte(`{"userId":"userid1","timestamp":23432423}`)
-
-	native, _, err := codec.NativeFromTextual(textual)
-	if err != nil {
-		t.Errorf("NativeFromTextual failed: %s", err)
-	}
+	native := GetNativeFixture()
 
 	blockManager := &BlockManager{
-		MaxAge:  1000, // milliseconds
-		MaxSize: 1024, // rows
-
-		PartitionColumn: "userId",
+		MaxAge:          1000, // milliseconds
+		MaxSize:         1024, // rows
+		PartitionColumn: "user_id",
 		KeyColumn:       "timestamp",
-		KeyType:         "int",
-
-		Input:  input,
-		Output: output,
-		Codec:  codec,
+		Input:           input,
+		Output:          output,
+		Codec:           GetCodecFixture(),
 	}
 
-	err = blockManager.Start()
+	err := blockManager.Start()
 	if err != nil {
 		t.Errorf("Block Manager start failed with error: %s", err)
 	}
@@ -65,5 +45,5 @@ func TestBlockManager(t *testing.T) {
 		t.Errorf("Block is the wrong size: %d vs. 2", block.Length())
 	}
 
-	fmt.Println("Finished TestBlockManager")
+	log.Println("Finished TestBlockManager")
 }

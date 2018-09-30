@@ -12,7 +12,6 @@ type BlockManager struct {
 
 	PartitionColumn string
 	KeyColumn       string
-	KeyType         string
 
 	MaxAge  uint32 // in milliseconds
 	MaxSize int    // in rows
@@ -21,9 +20,7 @@ type BlockManager struct {
 	Output chan *Block
 	Codec  *goavro.Codec
 
-	blocks            map[string]*Block // partitionKey -> block
-	finishedStreaming chan bool
-	finishedChecking  chan bool
+	blocks map[string]*Block // partitionKey -> block
 }
 
 func (bm *BlockManager) processRows() {
@@ -36,11 +33,23 @@ func (bm *BlockManager) processRows() {
 			}
 
 			rowMap := row.(map[string]interface{})
-			partitionKey := rowMap[bm.PartitionColumn].(string)
+
+			var partitionKey string
+			switch t := rowMap[bm.PartitionColumn].(type) {
+			case map[string]interface{}:
+				columnMap := rowMap[bm.PartitionColumn].(map[string]interface{})
+				for _, value := range columnMap {
+					partitionKey = value.(string)
+				}
+			case string:
+				partitionKey = rowMap[bm.PartitionColumn].(string)
+			default:
+				log.Printf("processRows unknown type: %T", t)
+			}
 
 			block, exists := bm.blocks[partitionKey]
 			if !exists {
-				block = NewBlock(bm, partitionKey)
+				block = NewBlock(partitionKey, bm.KeyColumn, bm.Codec)
 				bm.blocks[partitionKey] = block
 			}
 
@@ -54,7 +63,7 @@ func (bm *BlockManager) processRows() {
 }
 
 func (bm *BlockManager) commitBlock(block *Block) (err error) {
-	log.Printf("committing block for partition '%s' to output adapter\n", block.PartitionKey)
+	log.Printf("Committing block PartitionKey: %+v StartingKey: %+v EndingKey: %+v with %d rows\n", block.PartitionKey, block.StartingKey, block.EndingKey, len(block.Rows))
 
 	bm.Output <- block
 
