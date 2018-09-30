@@ -11,7 +11,7 @@ func TestFileStreamAdapter(t *testing.T) {
 	output := make(chan interface{})
 
 	fileStreamAdapter := &FileStreamAdapter{
-		FilePath: "./test/data/userid1/timestamp/GEYDAMBQGA======-GEYDAMBQGA======.avro",
+		FilePath: "./test/data/userid1/timestamp/GEYDAMBQGA======-GEYDAMBQGA======",
 		Codec:    GetCodecFixture(),
 		Output:   output,
 	}

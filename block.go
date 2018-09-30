@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	goavro "gopkg.in/linkedin/goavro.v2"
@@ -138,12 +139,24 @@ func (b *Block) RowsForKeyRange(startKey interface{}, endKey interface{}) (rowsI
 }
 
 func filenameIntersectsKeyRange(blockFilename string, startKey interface{}, endKey interface{}) (intersects bool) {
-	var blockStartKeyString string
-	var blockEndKeyString string
-	_, err := fmt.Sscanf(blockFilename, "%s-%s", &blockStartKeyString, &blockEndKeyString)
+	parts := strings.Split(blockFilename, "-")
+
+	if len(parts) != 2 {
+		return false
+	}
+
+	blockStartKeyData, err := base32.StdEncoding.DecodeString(parts[0])
 	if err != nil {
 		return false
 	}
+
+	blockEndKeyData, err := base32.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+
+	blockStartKeyString := string(blockStartKeyData)
+	blockEndKeyString := string(blockEndKeyData)
 
 	blockStartKey, err := convertBlockKeyToType(startKey, blockStartKeyString)
 	if err != nil {
@@ -169,7 +182,7 @@ func filenameIntersectsKeyRange(blockFilename string, startKey interface{}, endK
 }
 
 func IntersectingBlockFilenames(blockFilenames []string, startKey interface{}, endKey interface{}) (intersectingBlockFilenames []string) {
-	intersectingBlockFilenames = make([]string, len(blockFilenames))
+	intersectingBlockFilenames = make([]string, 0)
 
 	for _, blockFilename := range blockFilenames {
 		if filenameIntersectsKeyRange(blockFilename, startKey, endKey) {

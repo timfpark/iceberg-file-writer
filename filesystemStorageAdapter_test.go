@@ -38,9 +38,8 @@ func TestFilesystemStorageAdapterWrite(t *testing.T) {
 	log.Println("Finishing TestFilesystemStorageAdapterWrite")
 }
 
-/*
 func TestFilesystemStorageAdapterQuery(t *testing.T) {
-	fmt.Println("Starting TestFilesystemStorageAdapterQuery")
+	log.Println("Starting TestFilesystemStorageAdapterQuery")
 
 	fixtureMap := GetFixtureMap()
 	beforeTimestamp := fixtureMap["timestamp"].(int64) - 50
@@ -48,8 +47,12 @@ func TestFilesystemStorageAdapterQuery(t *testing.T) {
 
 	input := make(chan *Block)
 	filesystemStorageAdapter := &FilesystemStorageAdapter{
-		BasePath: "./test/data",
-		Input:    input,
+		BasePath:        "./test/data",
+		Codec:           GetCodecFixture(),
+		PartitionColumn: "user_id",
+		KeyColumn:       "timestamp",
+		CompressionName: "snappy",
+		Input:           input,
 	}
 
 	err := filesystemStorageAdapter.Start()
@@ -67,6 +70,5 @@ func TestFilesystemStorageAdapterQuery(t *testing.T) {
 		t.Errorf("filesystemStorageAdapter query results list wrong length %d vs. 1", len(results))
 	}
 
-	fmt.Println("Finishing TestFilesystemStorageAdapterQuery")
+	log.Println("Finishing TestFilesystemStorageAdapterQuery")
 }
-*/

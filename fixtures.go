@@ -40,7 +40,7 @@ func GetCodecFixture() (codec *goavro.Codec) {
 
 func GetFixtureMap() map[string]interface{} {
 	return map[string]interface{}{
-		"timestamp": 100000,
+		"timestamp": int64(100000),
 		"user_id":   "userid1",
 	}
 }
@@ -58,7 +58,7 @@ func GetNativeFixture() (native interface{}) {
 		"features":["osm-2332"]
 	}`
 
-	textual := fmt.Sprintf(textualTemplate, fixtureMap["user_id"].(string), fixtureMap["timestamp"].(int))
+	textual := fmt.Sprintf(textualTemplate, fixtureMap["user_id"].(string), fixtureMap["timestamp"].(int64))
 	textualAsBytes := []byte(textual)
 
 	// Convert textual Avro data (in Avro JSON format) to native Go form

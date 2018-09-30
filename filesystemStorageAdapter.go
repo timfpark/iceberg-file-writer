@@ -41,7 +41,7 @@ func (fsa *FilesystemStorageAdapter) processBlocks() {
 
 			partitionPath := fsa.getPartitionKeyPath(block.PartitionKey, block.KeyColumn)
 			blockFilename := block.GetFilename()
-			blockFilePath := fmt.Sprintf("%s/%s.avro", partitionPath, blockFilename)
+			blockFilePath := fmt.Sprintf("%s/%s", partitionPath, blockFilename)
 
 			os.MkdirAll(partitionPath, os.ModePerm)
 
@@ -124,7 +124,7 @@ func (fsa *FilesystemStorageAdapter) Query(partitionKey string, startKey interfa
 		return
 	}
 
-	blockFilenames := make([]string, len(partitionFileInfos))
+	blockFilenames := make([]string, 0)
 	for _, blockFileInfo := range partitionFileInfos {
 		blockFilenames = append(blockFilenames, blockFileInfo.Name())
 	}
@@ -139,7 +139,7 @@ func (fsa *FilesystemStorageAdapter) Query(partitionKey string, startKey interfa
 		go fsa.Load(partitionKey, intersectingBlockFilename, blocks, errors)
 	}
 
-	for i := 0; i < len(intersectingBlockFilenames); {
+	for i := 0; i < len(intersectingBlockFilenames); i++ {
 		select {
 		case block := <-blocks:
 			filteredRows := block.RowsForKeyRange(startKey, endKey)
