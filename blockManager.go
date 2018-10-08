@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	core "github.com/timfpark/iceberg-core"
 	goavro "gopkg.in/linkedin/goavro.v2"
 )
 
@@ -17,10 +18,10 @@ type BlockManager struct {
 	MaxSize int    // in rows
 
 	Input  chan interface{}
-	Output chan *Block
+	Output chan *core.Block
 	Codec  *goavro.Codec
 
-	blocks map[string]*Block // partitionKey -> block
+	blocks map[string]*core.Block // partitionKey -> block
 }
 
 func (bm *BlockManager) processRows() {
@@ -49,7 +50,7 @@ func (bm *BlockManager) processRows() {
 
 			block, exists := bm.blocks[partitionKey]
 			if !exists {
-				block = NewBlock(partitionKey, bm.KeyColumn, bm.Codec)
+				block = core.NewBlock(partitionKey, bm.KeyColumn, bm.Codec)
 				bm.blocks[partitionKey] = block
 			}
 
@@ -62,7 +63,7 @@ func (bm *BlockManager) processRows() {
 	}()
 }
 
-func (bm *BlockManager) commitBlock(block *Block) (err error) {
+func (bm *BlockManager) commitBlock(block *core.Block) (err error) {
 	log.Printf("Committing block PartitionKey: %+v StartingKey: %+v EndingKey: %+v with %d rows\n", block.PartitionKey, block.StartingKey, block.EndingKey, len(block.Rows))
 
 	bm.Output <- block
@@ -94,7 +95,7 @@ func (bm *BlockManager) checkBlockAges() {
 }
 
 func (bm *BlockManager) Start() (err error) {
-	bm.blocks = make(map[string]*Block)
+	bm.blocks = make(map[string]*core.Block)
 
 	bm.processRows()
 	bm.checkBlockAges()
