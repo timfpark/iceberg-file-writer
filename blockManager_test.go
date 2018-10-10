@@ -18,7 +18,7 @@ func TestBlockManager(t *testing.T) {
 
 	blockManager := &BlockManager{
 		MaxAge:          1000, // milliseconds
-		MaxSize:         1024, // rows
+		MaxSize:         8192, // rows
 		PartitionColumn: "user_id",
 		KeyColumn:       "timestamp",
 		Input:           input,

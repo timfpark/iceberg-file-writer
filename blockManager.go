@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	core "github.com/timfpark/iceberg-core"
@@ -21,7 +22,8 @@ type BlockManager struct {
 	Output chan *core.Block
 	Codec  *goavro.Codec
 
-	blocks map[string]*core.Block // partitionKey -> block
+	blocks       map[string]*core.Block // partitionKey -> block
+	managerMutex sync.Mutex
 }
 
 func (bm *BlockManager) processRows() {
@@ -32,6 +34,8 @@ func (bm *BlockManager) processRows() {
 			if !more {
 				break
 			}
+
+			bm.managerMutex.Lock()
 
 			rowMap := row.(map[string]interface{})
 
@@ -52,6 +56,7 @@ func (bm *BlockManager) processRows() {
 			if !exists {
 				block = core.NewBlock(partitionKey, bm.KeyColumn, bm.Codec)
 				bm.blocks[partitionKey] = block
+				log.Printf("creating block for partition key: %s uncommitted block count: %d\n", partitionKey, len(bm.blocks))
 			}
 
 			block.Write(row)
@@ -59,6 +64,8 @@ func (bm *BlockManager) processRows() {
 			if block.Length() >= bm.MaxSize {
 				bm.commitBlock(block)
 			}
+
+			bm.managerMutex.Unlock()
 		}
 	}()
 }
@@ -69,33 +76,47 @@ func (bm *BlockManager) commitBlock(block *core.Block) (err error) {
 	bm.Output <- block
 
 	delete(bm.blocks, block.PartitionKey)
+
+	log.Printf("uncommitted blocks remaining: %d\n", len(bm.blocks))
+
 	return nil
 }
 
-func (bm *BlockManager) commitBlocks(commitAll bool) (err error) {
+func (bm *BlockManager) CommitBlocks(commitAll bool) (err error) {
+	bm.managerMutex.Lock()
+
+	log.Printf("Committing blocks, all: %+v", commitAll)
+	blocksToCommit := []*core.Block{}
+
 	for _, block := range bm.blocks {
 		blockAgeMillis := uint32(time.Now().Sub(block.CreationTime).Seconds() * 1000.0)
 		if commitAll || blockAgeMillis > bm.MaxAge {
-			bm.commitBlock(block)
+			blocksToCommit = append(blocksToCommit, block)
 		}
 	}
+
+	for _, block := range blocksToCommit {
+		bm.commitBlock(block)
+	}
+
+	bm.managerMutex.Unlock()
 
 	return nil
 }
 
 func (bm *BlockManager) checkBlockAges() {
-	checkRate := time.Duration(bm.MaxAge / 4)
-	checkTicker := time.NewTicker(checkRate)
+	checkTicker := time.NewTicker(1 * time.Second)
 
 	go func() {
 		for _ = range checkTicker.C {
-			bm.commitBlocks(false)
+			bm.CommitBlocks(false)
 		}
 	}()
 }
 
 func (bm *BlockManager) Start() (err error) {
 	bm.blocks = make(map[string]*core.Block)
+	bm.managerMutex = sync.Mutex{}
 
 	bm.processRows()
 	bm.checkBlockAges()
@@ -116,7 +137,7 @@ func (bm *BlockManager) Stop() (err error) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
-	bm.commitBlocks(true)
+	bm.CommitBlocks(true)
 
 	return nil
 }
