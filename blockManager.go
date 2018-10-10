@@ -56,7 +56,7 @@ func (bm *BlockManager) processRows() {
 			if !exists {
 				block = core.NewBlock(partitionKey, bm.KeyColumn, bm.Codec)
 				bm.blocks[partitionKey] = block
-				log.Printf("creating block for partition key: %s uncommitted block count: %d\n", partitionKey, len(bm.blocks))
+				log.Printf("Creating block for partition key: %s uncommitted block count: %d\n", partitionKey, len(bm.blocks))
 			}
 
 			block.Write(row)
@@ -71,13 +71,11 @@ func (bm *BlockManager) processRows() {
 }
 
 func (bm *BlockManager) commitBlock(block *core.Block) (err error) {
-	log.Printf("Committing block PartitionKey: %+v StartingKey: %+v EndingKey: %+v with %d rows\n", block.PartitionKey, block.StartingKey, block.EndingKey, len(block.Rows))
+	log.Printf("Committing block PartitionKey: %+v StartingKey: %+v EndingKey: %+v with %d rows.  %d uncommitted blocks remaining.\n", block.PartitionKey, block.StartingKey, block.EndingKey, len(block.Rows), len(bm.blocks))
 
 	bm.Output <- block
 
 	delete(bm.blocks, block.PartitionKey)
-
-	log.Printf("uncommitted blocks remaining: %d\n", len(bm.blocks))
 
 	return nil
 }
