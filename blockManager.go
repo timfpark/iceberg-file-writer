@@ -35,8 +35,6 @@ func (bm *BlockManager) processRows() {
 				break
 			}
 
-			bm.managerMutex.Lock()
-
 			rowMap := row.(map[string]interface{})
 
 			var partitionKey string
@@ -51,6 +49,8 @@ func (bm *BlockManager) processRows() {
 			default:
 				log.Printf("processRows unknown type: %T", t)
 			}
+
+			bm.managerMutex.Lock()
 
 			block, exists := bm.blocks[partitionKey]
 			if !exists {
